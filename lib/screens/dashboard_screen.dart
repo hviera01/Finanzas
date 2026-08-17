@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/cargos.dart';
 import '../core/formato.dart';
+import '../models/compra_model.dart';
 import '../models/tarjeta_model.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import '../models/suscripcion_model.dart';
 import '../widgets/responsive.dart';
+import 'detalle_compra_screen.dart';
 import 'detalle_suscripcion_screen.dart';
 import 'registrar_compra_screen.dart';
 import 'tarjeta_detalle_screen.dart';
@@ -61,14 +63,23 @@ class DashboardScreen extends ConsumerWidget {
                     final tasa = tasaAsync.value?.valor ?? 25.4;
                     final tarjetasPorId = {for (final t in tarjetas) t.id: t};
 
-                    // "Próximo a pagar" es solo lo de las tarjetas (compras/cuotas) — las
-                    // suscripciones se muestran aparte, más abajo, por su propia fecha
-                    // de renovación (no como si fueran otra fecha de pago de la tarjeta).
+                    // "Próximo a pagar" es todo lo de las tarjetas (pagos únicos, comisiones
+                    // y cuotas: todas caen en la fecha de pago real de la tarjeta). Las
+                    // suscripciones se muestran aparte (su propia fecha de renovación) y
+                    // las cuotas en curso tienen además su propio tablero de progreso más
+                    // abajo — pero sí cuentan acá para saber cuánto hay que pagar cada fecha.
                     final cargos = cargosDeCompras(compras).where((c) => !c.pagada).toList();
                     final grupos = agruparPorPago(cargos);
 
                     final proximasRenovaciones = suscripciones.where((s) => s.activa).toList()
                       ..sort((a, b) => proximaRenovacionSuscripcion(a).compareTo(proximaRenovacionSuscripcion(b)));
+
+                    final cuotasEnCurso = compras.where((c) => c.numCuotas > 1 && !c.liquidada).toList()
+                      ..sort((a, b) {
+                        final proximaA = a.cuotas.firstWhere((q) => !q.pagada, orElse: () => a.cuotas.last);
+                        final proximaB = b.cuotas.firstWhere((q) => !q.pagada, orElse: () => b.cuotas.last);
+                        return proximaA.fechaVencimiento.compareTo(proximaB.fechaVencimiento);
+                      });
 
                     if (tarjetas.isEmpty) {
                       return _EstadoVacio(esPantallaAncha: esPantallaAncha(context));
@@ -110,6 +121,15 @@ class DashboardScreen extends ConsumerWidget {
                           ...proximasRenovaciones.map((s) => Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: _FilaSuscripcion(suscripcion: s, tarjeta: tarjetasPorId[s.tarjetaId]),
+                              )),
+                        ],
+                        if (cuotasEnCurso.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          Text('Cuotas en curso', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          ...cuotasEnCurso.map((c) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _FilaCuotaEnCurso(compra: c, tarjeta: tarjetasPorId[c.tarjetaId]),
                               )),
                         ],
                         const SizedBox(height: 80),
@@ -289,6 +309,72 @@ class _FilaSuscripcion extends StatelessWidget {
         trailing: Text(
           formatearMonto(suscripcion.monto, suscripcion.moneda),
           style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilaCuotaEnCurso extends StatelessWidget {
+  final CompraModel compra;
+  final TarjetaModel? tarjeta;
+
+  const _FilaCuotaEnCurso({required this.compra, required this.tarjeta});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = compra.cuotas.length;
+    final pagadas = compra.cuotas.where((c) => c.pagada).length;
+    final proxima = compra.cuotas.where((c) => !c.pagada).isEmpty
+        ? null
+        : compra.cuotas.where((c) => !c.pagada).reduce((a, b) => a.fechaVencimiento.isBefore(b.fechaVencimiento) ? a : b);
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => DetalleCompraScreen(compra: compra, tarjeta: tarjeta)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(compra.descripcion, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  Text('$pagadas/$total', style: TextStyle(fontSize: 12, color: Colors.black.withValues(alpha: 0.55))),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: total == 0 ? 0 : pagadas / total,
+                  minHeight: 6,
+                  backgroundColor: Colors.black.withValues(alpha: 0.08),
+                  valueColor: const AlwaysStoppedAnimation(AppColors.primario),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    tarjeta?.nombre ?? '',
+                    style: TextStyle(fontSize: 12, color: Colors.black.withValues(alpha: 0.55)),
+                  ),
+                  if (proxima != null)
+                    Text(
+                      'Próxima: ${formatearMonto(proxima.monto, compra.moneda)} · ${formatearFecha(proxima.fechaVencimiento)}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

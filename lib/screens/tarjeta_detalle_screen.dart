@@ -32,6 +32,32 @@ class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
     setState(() => _periodo = DateTime(_periodo.year, _periodo.month + delta));
   }
 
+  Future<void> _marcarTodoComoPagado(List<Cargo> cargos) async {
+    final pendientes = cargos.where((c) => !c.pagada).toList();
+    if (pendientes.isEmpty) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('¿Marcar todo como pagado?'),
+        content: Text('Se van a marcar como pagados los ${pendientes.length} cargos pendientes de este período.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Marcar todo')),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    final compraRepo = ref.read(compraRepositoryProvider);
+    final suscripcionRepo = ref.read(suscripcionRepositoryProvider);
+    await Future.wait(pendientes.map((c) {
+      if (c.tipo == TipoCargo.suscripcion) {
+        return suscripcionRepo.marcarPago(c.suscripcion!, c.periodoKey!, true);
+      }
+      return compraRepo.marcarCuota(c.compra!, c.cuota!.numero, true);
+    }));
+  }
+
   @override
   Widget build(BuildContext context) {
     final tarjetasAsync = ref.watch(tarjetasProvider);
@@ -140,6 +166,17 @@ class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
                                 label: const Text('Exportar estado de cuenta (PDF)'),
                               ),
                             ),
+                            if (cargos.any((c) => !c.pagada)) ...[
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: TextButton.icon(
+                                  onPressed: () => _marcarTodoComoPagado(cargos),
+                                  icon: const Icon(Icons.done_all, size: 18),
+                                  label: const Text('Marcar todo el período como pagado'),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
