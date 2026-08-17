@@ -11,6 +11,13 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/selector_cuotas_dialog.dart' show cuotasPreset, comisionSugeridaBac;
 
+class CuotaVista {
+  final String etiqueta;
+  final DateTime fecha;
+  final double monto;
+  const CuotaVista({required this.etiqueta, required this.fecha, required this.monto});
+}
+
 class RegistrarCompraScreen extends ConsumerStatefulWidget {
   final TarjetaModel? tarjetaInicial;
   const RegistrarCompraScreen({super.key, this.tarjetaInicial});
@@ -47,6 +54,28 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
     _cuotasCustomCtrl.dispose();
     _comisionCtrl.dispose();
     super.dispose();
+  }
+
+  List<CuotaVista>? get _previewCuotas {
+    if (_tarjeta == null) return null;
+    final numCuotas = _aCuotas ? _numCuotas : 1;
+    final monto = double.tryParse(_montoCtrl.text.replaceAll(',', '')) ?? 0;
+    final comision = _aCuotas ? (double.tryParse(_comisionCtrl.text.replaceAll(',', '')) ?? 0) : 0.0;
+    final cuotas = calcularCuotas(
+      fechaCompra: _fecha,
+      diaCorte: _tarjeta!.diaCorte,
+      diaPago: _tarjeta!.diaPago,
+      montoTotal: monto,
+      numCuotas: numCuotas,
+      porcentajeComisionPrimerMes: comision,
+    );
+    return cuotas
+        .map((c) => CuotaVista(
+              etiqueta: c.esComision ? 'Comisión inicial' : (numCuotas > 1 ? 'Cuota ${c.numero} de $numCuotas' : 'Pago único'),
+              fecha: c.fechaVencimiento,
+              monto: c.monto,
+            ))
+        .toList();
   }
 
   Future<void> _elegirFecha() async {
@@ -148,6 +177,7 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                           decoration: const InputDecoration(labelText: 'Monto'),
+                          onChanged: (_) => setState(() {}),
                           validator: (v) => (double.tryParse(v ?? '') == null) ? 'Monto inválido' : null,
                         ),
                       ),
@@ -224,6 +254,7 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                             decoration: const InputDecoration(labelText: '% comisión 1er pago'),
+                            onChanged: (_) => setState(() {}),
                             validator: (v) => _aCuotas && double.tryParse(v ?? '') == null ? 'Requerido' : null,
                           ),
                         ),
@@ -244,6 +275,10 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
                       title: const Text('Ya la pagué (dinero entregado de inmediato)'),
                     ),
                   ],
+                  if (_previewCuotas != null) ...[
+                    const SizedBox(height: 20),
+                    _VistaPreviaFechas(cuotas: _previewCuotas!, moneda: _moneda),
+                  ],
                   const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
@@ -259,6 +294,44 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VistaPreviaFechas extends StatelessWidget {
+  final List<CuotaVista> cuotas;
+  final Moneda moneda;
+
+  const _VistaPreviaFechas({required this.cuotas, required this.moneda});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primario.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Te tocaría pagar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          const SizedBox(height: 8),
+          ...cuotas.map((c) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: Text(c.etiqueta, style: const TextStyle(fontSize: 13))),
+                    Text(formatearFecha(c.fecha), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 10),
+                    Text(formatearMonto(c.monto, moneda), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              )),
+        ],
       ),
     );
   }

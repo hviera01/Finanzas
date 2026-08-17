@@ -181,7 +181,13 @@ class DetalleCompraScreen extends ConsumerWidget {
                             width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () async {
-                                final seleccion = await mostrarSelectorCuotas(context, titulo: 'Pasar a cuotas');
+                                final seleccion = await mostrarSelectorCuotas(
+                                  context,
+                                  titulo: 'Pasar a cuotas',
+                                  tarjeta: tarjeta,
+                                  montoTotal: compra.montoTotal,
+                                  moneda: compra.moneda,
+                                );
                                 if (seleccion == null) return;
                                 await repo.convertirACuotas(
                                   compra,
