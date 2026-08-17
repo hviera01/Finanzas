@@ -1,0 +1,162 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/formato.dart';
+import '../models/compra_model.dart';
+import '../models/tarjeta_model.dart';
+import '../providers/app_providers.dart';
+import '../theme/app_theme.dart';
+import '../widgets/responsive.dart';
+
+class DetalleCompraScreen extends ConsumerWidget {
+  final CompraModel compra;
+  final TarjetaModel? tarjeta;
+
+  const DetalleCompraScreen({super.key, required this.compra, required this.tarjeta});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.read(compraRepositoryProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(compra.descripcion),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Eliminar compra',
+            onPressed: () async {
+              final confirmar = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('¿Eliminar compra?'),
+                  content: Text('Se eliminará "${compra.descripcion}" y todo su plan de pagos.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Eliminar', style: TextStyle(color: AppColors.peligro)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmar == true) {
+                await repo.eliminar(compra.id);
+                if (context.mounted) Navigator.of(context).pop();
+              }
+            },
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: ContenidoCentrado(
+            anchoMaximo: 640,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                tarjeta?.nombre ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                              ),
+                            ),
+                            Text(formatearFecha(compra.fecha), style: TextStyle(color: Colors.black.withValues(alpha: 0.55))),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          formatearMonto(compra.montoTotal, compra.moneda),
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                        ),
+                        if (compra.numCuotas > 1)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'A ${compra.numCuotas} cuotas · ${compra.porcentajeComisionPrimerMes.toStringAsFixed(2)}% de comisión',
+                              style: TextStyle(color: Colors.black.withValues(alpha: 0.55)),
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _Resumen(
+                                titulo: 'Pagado',
+                                valor: formatearMonto(compra.totalPagado, compra.moneda),
+                                color: AppColors.primario,
+                              ),
+                            ),
+                            Expanded(
+                              child: _Resumen(
+                                titulo: 'Pendiente',
+                                valor: formatearMonto(compra.totalPendiente, compra.moneda),
+                                color: AppColors.peligro,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('Plan de pagos', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                ...compra.cuotas.map((c) {
+                  final etiqueta = c.esComision ? 'Comisión inicial' : 'Cuota ${c.numero} de ${compra.numCuotas}';
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: CheckboxListTile(
+                      value: c.pagada,
+                      onChanged: (v) => repo.marcarCuota(compra, c.numero, v ?? false),
+                      activeColor: AppColors.primario,
+                      title: Text(etiqueta, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        c.pagada && c.fechaPago != null
+                            ? 'Pagada el ${formatearFecha(c.fechaPago!)}'
+                            : 'Vence el ${formatearFecha(c.fechaVencimiento)}',
+                      ),
+                      secondary: Text(
+                        formatearMonto(c.monto, compra.moneda),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Resumen extends StatelessWidget {
+  final String titulo;
+  final String valor;
+  final Color color;
+
+  const _Resumen({required this.titulo, required this.valor, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: TextStyle(fontSize: 12, color: Colors.black.withValues(alpha: 0.5))),
+        const SizedBox(height: 2),
+        Text(valor, style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+      ],
+    );
+  }
+}
