@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/ciclo_facturacion.dart';
 import '../models/compra_model.dart';
+import '../models/tarjeta_model.dart';
 
 class CompraRepository {
   final _col = FirebaseFirestore.instance.collection('compras');
@@ -32,6 +34,31 @@ class CompraRepository {
       return c.copyWith(pagada: pagada, fechaPago: pagada ? DateTime.now() : null);
     }).toList();
     return _col.doc(compra.id).update({
+      'cuotas': nuevasCuotas.map((c) => c.toMap()).toList(),
+    });
+  }
+
+  /// Convierte una compra de pago único a cuotas (estilo "minicuotas"): la
+  /// comisión se cobra en el próximo pago a partir de HOY (no de la fecha
+  /// original de la compra), y las cuotas de capital arrancan el mes
+  /// siguiente. Solo tiene sentido si el pago único todavía no se pagó.
+  Future<void> convertirACuotas(
+    CompraModel compra, {
+    required TarjetaModel tarjeta,
+    required int numCuotas,
+    required double porcentajeComisionPrimerMes,
+  }) {
+    final nuevasCuotas = calcularCuotas(
+      fechaCompra: DateTime.now(),
+      diaCorte: tarjeta.diaCorte,
+      diaPago: tarjeta.diaPago,
+      montoTotal: compra.montoTotal,
+      numCuotas: numCuotas,
+      porcentajeComisionPrimerMes: porcentajeComisionPrimerMes,
+    );
+    return _col.doc(compra.id).update({
+      'numCuotas': numCuotas,
+      'porcentajeComisionPrimerMes': porcentajeComisionPrimerMes,
       'cuotas': nuevasCuotas.map((c) => c.toMap()).toList(),
     });
   }

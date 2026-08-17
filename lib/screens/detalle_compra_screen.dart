@@ -6,6 +6,7 @@ import '../models/tarjeta_model.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
+import '../widgets/selector_cuotas_dialog.dart';
 
 class DetalleCompraScreen extends ConsumerWidget {
   final CompraModel compra;
@@ -109,29 +110,78 @@ class DetalleCompraScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text('Plan de pagos', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                ...compra.cuotas.map((c) {
-                  final etiqueta = c.esComision ? 'Comisión inicial' : 'Cuota ${c.numero} de ${compra.numCuotas}';
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: CheckboxListTile(
-                      value: c.pagada,
-                      onChanged: (v) => repo.marcarCuota(compra, c.numero, v ?? false),
-                      activeColor: AppColors.primario,
-                      title: Text(etiqueta, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                        c.pagada && c.fechaPago != null
-                            ? 'Pagada el ${formatearFecha(c.fechaPago!)}'
-                            : 'Vence el ${formatearFecha(c.fechaVencimiento)}',
+                if (compra.numCuotas > 1) ...[
+                  Text('Plan de pagos', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  ...compra.cuotas.map((c) {
+                    final etiqueta = c.esComision ? 'Comisión inicial' : 'Cuota ${c.numero} de ${compra.numCuotas}';
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: CheckboxListTile(
+                        value: c.pagada,
+                        onChanged: (v) => repo.marcarCuota(compra, c.numero, v ?? false),
+                        activeColor: AppColors.primario,
+                        title: Text(etiqueta, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          c.pagada && c.fechaPago != null
+                              ? 'Pagada el ${formatearFecha(c.fechaPago!)}'
+                              : 'Vence el ${formatearFecha(c.fechaVencimiento)}',
+                        ),
+                        secondary: Text(
+                          formatearMonto(c.monto, compra.moneda),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
-                      secondary: Text(
-                        formatearMonto(c.monto, compra.moneda),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ] else ...[
+                  Builder(builder: (context) {
+                    final unica = compra.cuotas.first;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Card(
+                          child: CheckboxListTile(
+                            value: unica.pagada,
+                            onChanged: (v) => repo.marcarCuota(compra, unica.numero, v ?? false),
+                            activeColor: AppColors.primario,
+                            title: const Text('Pago único', style: TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: Text(
+                              unica.pagada && unica.fechaPago != null
+                                  ? 'Pagada el ${formatearFecha(unica.fechaPago!)}'
+                                  : 'Vence el ${formatearFecha(unica.fechaVencimiento)}',
+                            ),
+                            secondary: Text(
+                              formatearMonto(unica.monto, compra.moneda),
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        if (!unica.pagada && tarjeta != null) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final seleccion = await mostrarSelectorCuotas(context, titulo: 'Pasar a cuotas');
+                                if (seleccion == null) return;
+                                await repo.convertirACuotas(
+                                  compra,
+                                  tarjeta: tarjeta!,
+                                  numCuotas: seleccion.numCuotas,
+                                  porcentajeComisionPrimerMes: seleccion.porcentajeComision,
+                                );
+                                if (context.mounted) Navigator.of(context).pop();
+                              },
+                              icon: const Icon(Icons.call_split),
+                              label: const Text('Pasar a cuotas'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  }),
+                ],
               ],
             ),
           ),

@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/tarjeta_form_dialog.dart';
 import 'detalle_compra_screen.dart';
+import 'detalle_suscripcion_screen.dart';
 import 'registrar_compra_screen.dart';
 
 class TarjetaDetalleScreen extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
   Widget build(BuildContext context) {
     final tarjetasAsync = ref.watch(tarjetasProvider);
     final comprasAsync = ref.watch(comprasProvider);
+    final suscripcionesAsync = ref.watch(suscripcionesProvider);
     final tasaAsync = ref.watch(tasaCambioProvider);
 
     final tarjeta = tarjetasAsync.value?.firstWhere(
@@ -66,15 +68,16 @@ class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (todasLasCompras) {
             final compras = todasLasCompras.where((c) => c.tarjetaId == tarjeta.id).toList();
-            final cargos = aplanarCargos(compras)
-                .where((c) => c.cuota.anio == _periodo.year && c.cuota.mes == _periodo.month)
+            final suscripciones = (suscripcionesAsync.value ?? []).where((s) => s.tarjetaId == tarjeta.id).toList();
+            final cargos = todosLosCargos(compras, suscripciones)
+                .where((c) => c.anio == _periodo.year && c.mes == _periodo.month)
                 .toList()
-              ..sort((a, b) => a.cuota.fechaVencimiento.compareTo(b.cuota.fechaVencimiento));
+              ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
 
             final tasa = tasaAsync.value?.valor ?? 25.4;
-            final totalHnl = cargos.where((c) => !c.cuota.pagada).fold<double>(
+            final totalHnl = cargos.where((c) => !c.pagada).fold<double>(
                   0.0,
-                  (s, c) => s + (c.compra.moneda == Moneda.usd ? c.cuota.monto * tasa : c.cuota.monto),
+                  (s, c) => s + (c.moneda == Moneda.usd ? c.monto * tasa : c.monto),
                 );
 
             return SingleChildScrollView(
@@ -151,22 +154,36 @@ class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
                       )
                     else
                       ...cargos.map((c) {
-                        final etiqueta = c.cuota.esComision ? 'Comisión inicial' : 'Cuota ${c.cuota.numero} de ${c.compra.numCuotas}';
+                        final esSuscripcion = c.tipo == TipoCargo.suscripcion;
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => DetalleCompraScreen(compra: c.compra, tarjeta: tarjeta)),
-                            ),
+                            onTap: () {
+                              if (esSuscripcion) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => DetalleSuscripcionScreen(suscripcion: c.suscripcion!, tarjeta: tarjeta)),
+                                );
+                              } else {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => DetalleCompraScreen(compra: c.compra!, tarjeta: tarjeta)),
+                                );
+                              }
+                            },
                             leading: Checkbox(
-                              value: c.cuota.pagada,
+                              value: c.pagada,
                               activeColor: AppColors.primario,
-                              onChanged: (v) => ref.read(compraRepositoryProvider).marcarCuota(c.compra, c.cuota.numero, v ?? false),
+                              onChanged: (v) {
+                                if (esSuscripcion) {
+                                  ref.read(suscripcionRepositoryProvider).marcarPago(c.suscripcion!, c.periodoKey!, v ?? false);
+                                } else {
+                                  ref.read(compraRepositoryProvider).marcarCuota(c.compra!, c.cuota!.numero, v ?? false);
+                                }
+                              },
                             ),
-                            title: Text(c.compra.descripcion, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: Text('$etiqueta · vence ${formatearFecha(c.cuota.fechaVencimiento)}'),
+                            title: Text(c.descripcion, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: Text('${c.etiqueta} · vence ${formatearFecha(c.fechaVencimiento)}'),
                             trailing: Text(
-                              formatearMonto(c.cuota.monto, c.compra.moneda),
+                              formatearMonto(c.monto, c.moneda),
                               style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),

@@ -16,6 +16,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tarjetasAsync = ref.watch(tarjetasProvider);
     final comprasAsync = ref.watch(comprasProvider);
+    final suscripcionesAsync = ref.watch(suscripcionesProvider);
     final tasaAsync = ref.watch(tasaCambioProvider);
 
     return Scaffold(
@@ -54,10 +55,11 @@ class DashboardScreen extends ConsumerWidget {
                   loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
                   error: (e, _) => Text('Error: $e'),
                   data: (compras) {
+                    final suscripciones = suscripcionesAsync.value ?? [];
                     final tasa = tasaAsync.value?.valor ?? 25.4;
                     final tarjetasPorId = {for (final t in tarjetas) t.id: t};
 
-                    final cargos = aplanarCargos(compras).where((c) => !c.cuota.pagada).toList();
+                    final cargos = todosLosCargos(compras, suscripciones).where((c) => !c.pagada).toList();
                     final grupos = agruparPorPago(cargos);
 
                     if (tarjetas.isEmpty) {

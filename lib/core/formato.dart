@@ -1,17 +1,20 @@
 import 'package:intl/intl.dart';
 import '../models/compra_model.dart';
 
-final _formatoLempiras = NumberFormat.currency(locale: 'es_HN', symbol: 'L ', decimalDigits: 2);
-final _formatoDolares = NumberFormat.currency(locale: 'en_US', symbol: '\$ ', decimalDigits: 2);
+// Formato fijo (independiente del locale del navegador): coma de miles,
+// punto decimal, símbolo pegado al número — "L.1,200.00" / "$1,200.00".
+final _formatoNumero = NumberFormat('#,##0.00', 'en_US');
 final _formatoFecha = DateFormat('d MMM yyyy', 'es');
 final _formatoFechaLarga = DateFormat("d 'de' MMMM 'de' yyyy", 'es');
 final _formatoMesAnio = DateFormat('MMMM yyyy', 'es');
 
 String formatearMonto(double monto, Moneda moneda) {
-  return moneda == Moneda.usd ? _formatoDolares.format(monto) : _formatoLempiras.format(monto);
+  return moneda == Moneda.usd ? formatearDolares(monto) : formatearLempiras(monto);
 }
 
-String formatearLempiras(double monto) => _formatoLempiras.format(monto);
+String formatearLempiras(double monto) => 'L.${_formatoNumero.format(monto)}';
+
+String formatearDolares(double monto) => '\$${_formatoNumero.format(monto)}';
 
 String formatearFecha(DateTime fecha) => _formatoFecha.format(fecha);
 

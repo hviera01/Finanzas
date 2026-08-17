@@ -9,9 +9,7 @@ import '../models/tarjeta_model.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
-
-const _cuotasPreset = [3, 6, 12, 18, 24];
-const _comisionSugeridaBac = {3: 6.0, 6: 9.0, 12: 13.0, 18: 18.0, 24: 24.0};
+import '../widgets/selector_cuotas_dialog.dart' show cuotasPreset, comisionSugeridaBac;
 
 class RegistrarCompraScreen extends ConsumerStatefulWidget {
   final TarjetaModel? tarjetaInicial;
@@ -189,7 +187,7 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _cuotasPreset.map((n) {
+                      children: cuotasPreset.map((n) {
                         final seleccionado = _numCuotas == n && _cuotasCustomCtrl.text.isEmpty;
                         return ChoiceChip(
                           label: Text('$n cuotas'),
@@ -198,7 +196,7 @@ class _RegistrarCompraScreenState extends ConsumerState<RegistrarCompraScreen> {
                             setState(() {
                               _numCuotas = n;
                               _cuotasCustomCtrl.clear();
-                              _comisionCtrl.text = _comisionSugeridaBac[n]!.toString();
+                              _comisionCtrl.text = comisionSugeridaBac[n]!.toString();
                             });
                           },
                         );

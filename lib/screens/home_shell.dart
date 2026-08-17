@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/responsive.dart';
 import 'dashboard_screen.dart';
 import 'historial_screen.dart';
+import 'suscripciones_screen.dart';
 import 'tarjetas_screen.dart';
 
 class HomeShell extends StatefulWidget {
@@ -17,12 +18,14 @@ class _HomeShellState extends State<HomeShell> {
   static const _destinos = [
     NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Inicio'),
     NavigationDestination(icon: Icon(Icons.credit_card_outlined), selectedIcon: Icon(Icons.credit_card), label: 'Tarjetas'),
+    NavigationDestination(icon: Icon(Icons.autorenew_outlined), selectedIcon: Icon(Icons.autorenew), label: 'Suscripciones'),
     NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Historial'),
   ];
 
   static const _paginas = [
     DashboardScreen(),
     TarjetasScreen(),
+    SuscripcionesScreen(),
     HistorialScreen(),
   ];
 

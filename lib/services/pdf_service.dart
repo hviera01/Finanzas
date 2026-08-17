@@ -9,19 +9,17 @@ import '../models/tarjeta_model.dart';
 Future<void> exportarEstadoCuentaPdf({
   required TarjetaModel tarjeta,
   required DateTime periodo,
-  required List<CargoPendiente> cargos,
+  required List<Cargo> cargos,
   required double tasaUsdHnl,
 }) async {
   final doc = pw.Document();
 
-  final totalHnl = cargos
-      .where((c) => c.compra.moneda == Moneda.hnl)
-      .fold(0.0, (s, c) => s + c.cuota.monto);
-  final totalUsd = cargos
-      .where((c) => c.compra.moneda == Moneda.usd)
-      .fold(0.0, (s, c) => s + c.cuota.monto);
-  final totalGeneralHnl = totalHnl + totalUsd * tasaUsdHnl;
-  final pagados = cargos.where((c) => c.cuota.pagada).length;
+  double enLempiras(Cargo c) => c.moneda == Moneda.usd ? c.monto * tasaUsdHnl : c.monto;
+
+  final totalGeneral = cargos.fold<double>(0.0, (s, c) => s + enLempiras(c));
+  final totalPagado = cargos.where((c) => c.pagada).fold<double>(0.0, (s, c) => s + enLempiras(c));
+  final totalPendiente = cargos.where((c) => !c.pagada).fold<double>(0.0, (s, c) => s + enLempiras(c));
+  final pagados = cargos.where((c) => c.pagada).length;
 
   doc.addPage(
     pw.MultiPage(
@@ -70,14 +68,17 @@ Future<void> exportarEstadoCuentaPdf({
               ],
             ),
             ...cargos.map((c) {
-              final etiqueta = c.cuota.esComision ? 'Comisión inicial' : 'Cuota ${c.cuota.numero} de ${c.compra.numCuotas}';
               return pw.TableRow(
                 children: [
-                  _celda(c.compra.descripcion),
-                  _celda(etiqueta),
-                  _celda(formatearMonto(c.cuota.monto, c.compra.moneda)),
-                  _celda(formatearFecha(c.cuota.fechaVencimiento)),
-                  _celda(c.cuota.pagada ? 'Pagada' : 'Pendiente'),
+                  _celda(c.descripcion),
+                  _celda(c.etiqueta),
+                  _celda(formatearMonto(c.monto, c.moneda)),
+                  _celda(formatearFecha(c.fechaVencimiento)),
+                  _celda(
+                    c.pagada ? 'Pagada' : 'Pendiente',
+                    color: c.pagada ? PdfColors.green700 : PdfColors.orange800,
+                    negrita: true,
+                  ),
                 ],
               );
             }),
@@ -90,14 +91,12 @@ Future<void> exportarEstadoCuentaPdf({
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              if (totalUsd > 0) pw.Text('Total en dólares: ${formatearMonto(totalUsd, Moneda.usd)}'),
-              if (totalHnl > 0) pw.Text('Total en lempiras: ${formatearMonto(totalHnl, Moneda.hnl)}'),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                'Total del período (equivalente en L): ${formatearLempiras(totalGeneralHnl)}',
-                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 2),
+              _filaResumen('Total del período', formatearLempiras(totalGeneral), negrita: true),
+              pw.SizedBox(height: 3),
+              _filaResumen('Ya pagado', formatearLempiras(totalPagado), color: PdfColors.green700),
+              pw.SizedBox(height: 3),
+              _filaResumen('Pendiente de pagar', formatearLempiras(totalPendiente), color: PdfColors.orange800),
+              pw.SizedBox(height: 8),
               pw.Text('Tasa usada: 1 USD = ${formatearLempiras(tasaUsdHnl)}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
               pw.Text('$pagados de ${cargos.length} cargos ya pagados', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
             ],
@@ -113,9 +112,25 @@ Future<void> exportarEstadoCuentaPdf({
   );
 }
 
-pw.Widget _celda(String texto, {bool negrita = false}) {
+pw.Widget _filaResumen(String etiqueta, String valor, {bool negrita = false, PdfColor? color}) {
+  return pw.Row(
+    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+    children: [
+      pw.Text(etiqueta, style: pw.TextStyle(fontSize: negrita ? 13 : 11, fontWeight: negrita ? pw.FontWeight.bold : pw.FontWeight.normal)),
+      pw.Text(
+        valor,
+        style: pw.TextStyle(fontSize: negrita ? 15 : 12, fontWeight: pw.FontWeight.bold, color: color ?? PdfColors.black),
+      ),
+    ],
+  );
+}
+
+pw.Widget _celda(String texto, {bool negrita = false, PdfColor? color}) {
   return pw.Padding(
     padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-    child: pw.Text(texto, style: pw.TextStyle(fontSize: 9.5, fontWeight: negrita ? pw.FontWeight.bold : pw.FontWeight.normal)),
+    child: pw.Text(
+      texto,
+      style: pw.TextStyle(fontSize: 9.5, fontWeight: negrita ? pw.FontWeight.bold : pw.FontWeight.normal, color: color ?? PdfColors.black),
+    ),
   );
 }
