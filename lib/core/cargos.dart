@@ -1,6 +1,8 @@
+import 'ciclo_facturacion.dart';
 import '../models/compra_model.dart';
 import '../models/cuota_model.dart';
 import '../models/suscripcion_model.dart';
+import '../models/tarjeta_model.dart';
 
 enum TipoCargo { comision, cuota, pagoUnico, suscripcion }
 
@@ -73,25 +75,38 @@ List<Cargo> cargosDeCompras(List<CompraModel> compras) {
   }).toList();
 }
 
-List<Cargo> cargosDeSuscripciones(List<SuscripcionModel> suscripciones, {DateTime? ahora}) {
+/// Cargos de suscripciones, YA convertidos a la fecha real de pago de su
+/// tarjeta (no al día de renovación de la suscripción): Netflix cobra la
+/// tarjeta el día 13, pero lo que hay que pagarle al banco por eso cae en
+/// el día de pago real de la tarjeta (ej. el 27), igual que cualquier otra
+/// compra — así no aparecen fechas "fantasma" que no son de la tarjeta.
+List<Cargo> cargosDeSuscripciones(
+  List<SuscripcionModel> suscripciones,
+  Map<String, TarjetaModel> tarjetasPorId, {
+  DateTime? ahora,
+}) {
   final hoy = ahora ?? DateTime.now();
   final resultado = <Cargo>[];
 
   for (final s in suscripciones) {
+    final tarjeta = tarjetasPorId[s.tarjetaId];
+    if (tarjeta == null) continue;
+
     final limite = s.activa ? _proximoCobro(hoy, s.diaCobro) : (s.fechaCancelacion ?? hoy);
     var actual = _proximoCobro(s.fechaInicio, s.diaCobro);
 
     while (!actual.isAfter(limite)) {
       final key = _periodoKey(actual.year, actual.month);
+      final vencimiento = proximaFechaPago(fecha: actual, diaCorte: tarjeta.diaCorte, diaPago: tarjeta.diaPago);
       resultado.add(Cargo(
         tarjetaId: s.tarjetaId,
         descripcion: s.descripcion,
         etiqueta: 'Suscripción',
         monto: s.monto,
         moneda: s.moneda,
-        fechaVencimiento: actual,
-        anio: actual.year,
-        mes: actual.month,
+        fechaVencimiento: vencimiento,
+        anio: vencimiento.year,
+        mes: vencimiento.month,
         pagada: s.pagos[key] ?? false,
         fechaPago: null,
         tipo: TipoCargo.suscripcion,
@@ -105,8 +120,12 @@ List<Cargo> cargosDeSuscripciones(List<SuscripcionModel> suscripciones, {DateTim
   return resultado;
 }
 
-List<Cargo> todosLosCargos(List<CompraModel> compras, List<SuscripcionModel> suscripciones) {
-  return [...cargosDeCompras(compras), ...cargosDeSuscripciones(suscripciones)];
+List<Cargo> todosLosCargos(
+  List<CompraModel> compras,
+  List<SuscripcionModel> suscripciones,
+  Map<String, TarjetaModel> tarjetasPorId,
+) {
+  return [...cargosDeCompras(compras), ...cargosDeSuscripciones(suscripciones, tarjetasPorId)];
 }
 
 /// Agrupa cargos de una misma tarjeta que vencen el mismo día (comparten

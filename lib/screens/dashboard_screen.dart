@@ -59,7 +59,7 @@ class DashboardScreen extends ConsumerWidget {
                     final tasa = tasaAsync.value?.valor ?? 25.4;
                     final tarjetasPorId = {for (final t in tarjetas) t.id: t};
 
-                    final cargos = todosLosCargos(compras, suscripciones).where((c) => !c.pagada).toList();
+                    final cargos = todosLosCargos(compras, suscripciones, tarjetasPorId).where((c) => !c.pagada).toList();
                     final grupos = agruparPorPago(cargos);
 
                     if (tarjetas.isEmpty) {
@@ -147,7 +147,9 @@ class _TarjetaProximoPago extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       onTap: tarjeta == null
           ? null
-          : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TarjetaDetalleScreen(tarjeta: tarjeta!))),
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => TarjetaDetalleScreen(tarjeta: tarjeta!, periodoInicial: grupo.fecha)),
+              ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -200,7 +202,9 @@ class _FilaTarjeta extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TarjetaDetalleScreen(tarjeta: tarjeta))),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => TarjetaDetalleScreen(tarjeta: tarjeta, periodoInicial: proximo?.fecha)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -257,7 +261,9 @@ class _FilaGrupoPago extends StatelessWidget {
       child: ListTile(
         onTap: tarjeta == null
             ? null
-            : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TarjetaDetalleScreen(tarjeta: tarjeta!))),
+            : () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => TarjetaDetalleScreen(tarjeta: tarjeta!, periodoInicial: grupo.fecha)),
+                ),
         title: Text(tarjeta?.nombre ?? ''),
         subtitle: Text(formatearFecha(grupo.fecha)),
         trailing: Text(formatearLempiras(grupo.totalEnLempiras(tasa)), style: const TextStyle(fontWeight: FontWeight.w700)),

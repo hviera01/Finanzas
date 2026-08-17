@@ -18,7 +18,9 @@ class DetalleSuscripcionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(suscripcionRepositoryProvider);
-    final cargos = cargosDeSuscripciones([suscripcion])..sort((a, b) => b.fechaVencimiento.compareTo(a.fechaVencimiento));
+    final tarjetasPorId = tarjeta == null ? <String, TarjetaModel>{} : {tarjeta!.id: tarjeta!};
+    final cargos = cargosDeSuscripciones([suscripcion], tarjetasPorId)
+      ..sort((a, b) => b.fechaVencimiento.compareTo(a.fechaVencimiento));
 
     return Scaffold(
       appBar: AppBar(

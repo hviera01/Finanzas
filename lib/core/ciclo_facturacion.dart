@@ -25,7 +25,7 @@ List<CuotaModel> calcularCuotas({
 }) {
   assert(numCuotas >= 1);
 
-  final primerPago = _proximaFechaPago(fecha: fechaCompra, diaCorte: diaCorte, diaPago: diaPago);
+  final primerPago = proximaFechaPago(fecha: fechaCompra, diaCorte: diaCorte, diaPago: diaPago);
 
   if (numCuotas == 1) {
     return [
@@ -90,7 +90,7 @@ List<CuotaModel> calcularCuotas({
 
 /// La fecha del próximo pago que le corresponde a una compra/cargo hecho en
 /// [fecha], dado el corte/pago de la tarjeta.
-DateTime _proximaFechaPago({required DateTime fecha, required int diaCorte, required int diaPago}) {
+DateTime proximaFechaPago({required DateTime fecha, required int diaCorte, required int diaPago}) {
   int corteAnio = fecha.year;
   int corteMes = fecha.month;
   if (fecha.day > diaCorte) {

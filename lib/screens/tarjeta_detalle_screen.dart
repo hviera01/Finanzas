@@ -15,14 +15,17 @@ import 'registrar_compra_screen.dart';
 
 class TarjetaDetalleScreen extends ConsumerStatefulWidget {
   final TarjetaModel tarjeta;
-  const TarjetaDetalleScreen({super.key, required this.tarjeta});
+  final DateTime? periodoInicial;
+  const TarjetaDetalleScreen({super.key, required this.tarjeta, this.periodoInicial});
 
   @override
   ConsumerState<TarjetaDetalleScreen> createState() => _TarjetaDetalleScreenState();
 }
 
 class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
-  late DateTime _periodo = DateTime(DateTime.now().year, DateTime.now().month);
+  late DateTime _periodo = widget.periodoInicial == null
+      ? DateTime(DateTime.now().year, DateTime.now().month)
+      : DateTime(widget.periodoInicial!.year, widget.periodoInicial!.month);
   bool _exportando = false;
 
   void _cambiarMes(int delta) {
@@ -69,7 +72,7 @@ class _TarjetaDetalleScreenState extends ConsumerState<TarjetaDetalleScreen> {
           data: (todasLasCompras) {
             final compras = todasLasCompras.where((c) => c.tarjetaId == tarjeta.id).toList();
             final suscripciones = (suscripcionesAsync.value ?? []).where((s) => s.tarjetaId == tarjeta.id).toList();
-            final cargos = todosLosCargos(compras, suscripciones)
+            final cargos = todosLosCargos(compras, suscripciones, {tarjeta.id: tarjeta})
                 .where((c) => c.anio == _periodo.year && c.mes == _periodo.month)
                 .toList()
               ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
