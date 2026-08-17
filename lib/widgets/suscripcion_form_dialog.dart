@@ -34,7 +34,11 @@ class _SuscripcionFormDialogState extends State<_SuscripcionFormDialog> {
   late final _montoCtrl = TextEditingController(text: widget.existente?.monto.toString() ?? '');
   late final _diaCtrl = TextEditingController(text: widget.existente?.diaCobro.toString() ?? '');
   late Moneda _moneda = widget.existente?.moneda ?? Moneda.hnl;
-  late DateTime _fechaInicio = widget.existente?.fechaInicio ?? DateTime.now();
+  // Por defecto 32 días atrás (no "hoy"): así, sea cual sea el día de cobro
+  // elegido, la suscripción arranca contando el cargo del ciclo actual —
+  // la mayoría de las suscripciones que se agregan ya vienen corriendo,
+  // no arrancan justo hoy. El usuario puede ajustarla si hace falta.
+  late DateTime _fechaInicio = widget.existente?.fechaInicio ?? DateTime.now().subtract(const Duration(days: 32));
   TarjetaModel? _tarjeta;
 
   @override

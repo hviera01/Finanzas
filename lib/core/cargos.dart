@@ -161,6 +161,14 @@ List<GrupoPago> agruparPorPago(List<Cargo> cargos) {
   return lista;
 }
 
+/// Próxima fecha de renovación/cobro de una suscripción (el día que Netflix
+/// le cobra a la tarjeta, sin pasar por el ciclo de corte/pago). Para
+/// mostrar en una lista aparte de "próximas renovaciones", separada de lo
+/// que hay que pagarle al banco por cada tarjeta.
+DateTime proximaRenovacionSuscripcion(SuscripcionModel s, {DateTime? ahora}) {
+  return _proximoCobro(ahora ?? DateTime.now(), s.diaCobro);
+}
+
 const _prefijoTarjeta = 't:';
 
 String _periodoKey(int anio, int mes) => '$anio-${mes.toString().padLeft(2, '0')}';

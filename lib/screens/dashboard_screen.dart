@@ -5,7 +5,9 @@ import '../core/formato.dart';
 import '../models/tarjeta_model.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
+import '../models/suscripcion_model.dart';
 import '../widgets/responsive.dart';
+import 'detalle_suscripcion_screen.dart';
 import 'registrar_compra_screen.dart';
 import 'tarjeta_detalle_screen.dart';
 
@@ -59,8 +61,14 @@ class DashboardScreen extends ConsumerWidget {
                     final tasa = tasaAsync.value?.valor ?? 25.4;
                     final tarjetasPorId = {for (final t in tarjetas) t.id: t};
 
-                    final cargos = todosLosCargos(compras, suscripciones, tarjetasPorId).where((c) => !c.pagada).toList();
+                    // "Próximo a pagar" es solo lo de las tarjetas (compras/cuotas) — las
+                    // suscripciones se muestran aparte, más abajo, por su propia fecha
+                    // de renovación (no como si fueran otra fecha de pago de la tarjeta).
+                    final cargos = cargosDeCompras(compras).where((c) => !c.pagada).toList();
                     final grupos = agruparPorPago(cargos);
+
+                    final proximasRenovaciones = suscripciones.where((s) => s.activa).toList()
+                      ..sort((a, b) => proximaRenovacionSuscripcion(a).compareTo(proximaRenovacionSuscripcion(b)));
 
                     if (tarjetas.isEmpty) {
                       return _EstadoVacio(esPantallaAncha: esPantallaAncha(context));
@@ -94,6 +102,15 @@ class DashboardScreen extends ConsumerWidget {
                           Text('Otros pagos próximos', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 10),
                           ...grupos.skip(1).take(6).map((g) => _FilaGrupoPago(grupo: g, tarjeta: tarjetasPorId[g.tarjetaId], tasa: tasa)),
+                        ],
+                        if (proximasRenovaciones.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          Text('Próximas renovaciones', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          ...proximasRenovaciones.map((s) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _FilaSuscripcion(suscripcion: s, tarjeta: tarjetasPorId[s.tarjetaId]),
+                              )),
                         ],
                         const SizedBox(height: 80),
                       ],
@@ -241,6 +258,37 @@ class _FilaTarjeta extends StatelessWidget {
               const Icon(Icons.chevron_right, color: Colors.black26),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilaSuscripcion extends StatelessWidget {
+  final SuscripcionModel suscripcion;
+  final TarjetaModel? tarjeta;
+
+  const _FilaSuscripcion({required this.suscripcion, required this.tarjeta});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => DetalleSuscripcionScreen(suscripcion: suscripcion, tarjeta: tarjeta)),
+        ),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: AppColors.acento.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.autorenew_rounded, color: AppColors.acento, size: 20),
+        ),
+        title: Text(suscripcion.descripcion, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text('${tarjeta?.nombre ?? ''} · se renueva el ${formatearFecha(proximaRenovacionSuscripcion(suscripcion))}'),
+        trailing: Text(
+          formatearMonto(suscripcion.monto, suscripcion.moneda),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
     );
