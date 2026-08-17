@@ -38,6 +38,20 @@ class CompraRepository {
     });
   }
 
+  /// Marca como pagado todo lo que quede pendiente de una compra (comisión
+  /// y todas las cuotas), para cuando el usuario decide liquidarla completa
+  /// de una sola vez en vez de ir abonando mes a mes.
+  Future<void> liquidarTodo(CompraModel compra) {
+    final ahora = DateTime.now();
+    final nuevasCuotas = compra.cuotas.map((c) {
+      if (c.pagada) return c;
+      return c.copyWith(pagada: true, fechaPago: ahora);
+    }).toList();
+    return _col.doc(compra.id).update({
+      'cuotas': nuevasCuotas.map((c) => c.toMap()).toList(),
+    });
+  }
+
   /// Convierte una compra de pago único a cuotas (estilo "minicuotas"): la
   /// comisión se cobra en el próximo pago a partir de HOY (no de la fecha
   /// original de la compra), y las cuotas de capital arrancan el mes

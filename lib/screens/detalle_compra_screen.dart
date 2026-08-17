@@ -123,6 +123,32 @@ class DetalleCompraScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        if (!compra.liquidada) ...[
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final confirmar = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text('¿Liquidar todo?'),
+                                    content: Text(
+                                      'Se va a marcar como pagado el saldo pendiente completo: ${formatearMonto(compra.totalPendiente, compra.moneda)}.',
+                                    ),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+                                      ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Liquidar')),
+                                    ],
+                                  ),
+                                );
+                                if (confirmar == true) await repo.liquidarTodo(compra);
+                              },
+                              icon: const Icon(Icons.done_all, size: 18),
+                              label: const Text('Liquidar todo'),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
