@@ -63,12 +63,15 @@ class DashboardScreen extends ConsumerWidget {
                     final tasa = tasaAsync.value?.valor ?? 25.4;
                     final tarjetasPorId = {for (final t in tarjetas) t.id: t};
 
-                    // "Próximo a pagar" es todo lo de las tarjetas (pagos únicos, comisiones
-                    // y cuotas: todas caen en la fecha de pago real de la tarjeta). Las
-                    // suscripciones se muestran aparte (su propia fecha de renovación) y
-                    // las cuotas en curso tienen además su propio tablero de progreso más
-                    // abajo — pero sí cuentan acá para saber cuánto hay que pagar cada fecha.
-                    final cargos = cargosDeCompras(compras).where((c) => !c.pagada).toList();
+                    // "Próximo a pagar" tiene que sumar TODO lo que realmente cae en esa
+                    // fecha de la tarjeta (pagos únicos, comisiones, cuotas y también
+                    // suscripciones, que ya se cobran en la fecha de pago real de la
+                    // tarjeta) — si no, el total no cuadra con el que se ve al entrar al
+                    // detalle de la tarjeta. Las suscripciones además tienen su propia
+                    // sección "Próximas renovaciones" y las cuotas su propio tablero de
+                    // progreso más abajo, pero eso es solo una vista extra, no reemplaza
+                    // que cuenten acá.
+                    final cargos = todosLosCargos(compras, suscripciones, tarjetasPorId).where((c) => !c.pagada).toList();
                     final grupos = agruparPorPago(cargos);
 
                     final proximasRenovaciones = suscripciones.where((s) => s.activa).toList()
