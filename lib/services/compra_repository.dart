@@ -62,4 +62,41 @@ class CompraRepository {
       'cuotas': nuevasCuotas.map((c) => c.toMap()).toList(),
     });
   }
+
+  /// Edita los datos base de una compra ya registrada (descripción, monto,
+  /// moneda, tarjeta, fecha). Recalcula el plan de pagos con esos datos
+  /// nuevos (mismo numCuotas/comisión de antes) y conserva el estado
+  /// pagada/fechaPago de cada cuota que siga existiendo (mismo número).
+  Future<void> editar(
+    CompraModel compra, {
+    required TarjetaModel tarjeta,
+    required String descripcion,
+    required double montoTotal,
+    required Moneda moneda,
+    required DateTime fecha,
+  }) {
+    final cuotasRecalculadas = calcularCuotas(
+      fechaCompra: fecha,
+      diaCorte: tarjeta.diaCorte,
+      diaPago: tarjeta.diaPago,
+      montoTotal: montoTotal,
+      numCuotas: compra.numCuotas,
+      porcentajeComisionPrimerMes: compra.porcentajeComisionPrimerMes,
+    );
+    final pagosPorNumero = {for (final c in compra.cuotas) c.numero: c};
+    final nuevasCuotas = cuotasRecalculadas.map((c) {
+      final anterior = pagosPorNumero[c.numero];
+      if (anterior == null || !anterior.pagada) return c;
+      return c.copyWith(pagada: true, fechaPago: anterior.fechaPago);
+    }).toList();
+
+    return _col.doc(compra.id).update({
+      'tarjetaId': tarjeta.id,
+      'descripcion': descripcion,
+      'montoTotal': montoTotal,
+      'moneda': moneda.codigo,
+      'fecha': Timestamp.fromDate(fecha),
+      'cuotas': nuevasCuotas.map((c) => c.toMap()).toList(),
+    });
+  }
 }

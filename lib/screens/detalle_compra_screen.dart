@@ -5,6 +5,7 @@ import '../models/compra_model.dart';
 import '../models/tarjeta_model.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/editar_compra_dialog.dart';
 import '../widgets/responsive.dart';
 import '../widgets/selector_cuotas_dialog.dart';
 
@@ -22,29 +23,46 @@ class DetalleCompraScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(compra.descripcion),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Eliminar compra',
-            onPressed: () async {
-              final confirmar = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('¿Eliminar compra?'),
-                  content: Text('Se eliminará "${compra.descripcion}" y todo su plan de pagos.'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Eliminar', style: TextStyle(color: AppColors.peligro)),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmar == true) {
-                await repo.eliminar(compra.id);
+          PopupMenuButton<String>(
+            onSelected: (v) async {
+              if (v == 'editar') {
+                final tarjetas = ref.read(tarjetasProvider).value ?? [];
+                final edicion = await mostrarEditorCompra(context, compra: compra, tarjetas: tarjetas);
+                if (edicion == null) return;
+                await repo.editar(
+                  compra,
+                  tarjeta: edicion.tarjeta,
+                  descripcion: edicion.descripcion,
+                  montoTotal: edicion.montoTotal,
+                  moneda: edicion.moneda,
+                  fecha: edicion.fecha,
+                );
                 if (context.mounted) Navigator.of(context).pop();
+              } else if (v == 'eliminar') {
+                final confirmar = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('¿Eliminar compra?'),
+                    content: Text('Se eliminará "${compra.descripcion}" y todo su plan de pagos.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Eliminar', style: TextStyle(color: AppColors.peligro)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmar == true) {
+                  await repo.eliminar(compra.id);
+                  if (context.mounted) Navigator.of(context).pop();
+                }
               }
             },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'editar', child: Text('Editar')),
+              PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
+            ],
           ),
         ],
       ),

@@ -34,6 +34,7 @@ class _SuscripcionFormDialogState extends State<_SuscripcionFormDialog> {
   late final _montoCtrl = TextEditingController(text: widget.existente?.monto.toString() ?? '');
   late final _diaCtrl = TextEditingController(text: widget.existente?.diaCobro.toString() ?? '');
   late Moneda _moneda = widget.existente?.moneda ?? Moneda.hnl;
+  late DateTime _fechaInicio = widget.existente?.fechaInicio ?? DateTime.now();
   TarjetaModel? _tarjeta;
 
   @override
@@ -67,7 +68,7 @@ class _SuscripcionFormDialogState extends State<_SuscripcionFormDialog> {
       moneda: _moneda,
       diaCobro: int.parse(_diaCtrl.text),
       activa: widget.existente?.activa ?? true,
-      fechaInicio: widget.existente?.fechaInicio ?? DateTime.now(),
+      fechaInicio: _fechaInicio,
       fechaCancelacion: widget.existente?.fechaCancelacion,
       pagos: widget.existente?.pagos ?? const {},
     );
@@ -139,6 +140,28 @@ class _SuscripcionFormDialogState extends State<_SuscripcionFormDialog> {
                   if (n == null || n < 1 || n > 31) return '1-31';
                   return null;
                 },
+              ),
+              const SizedBox(height: 14),
+              InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () async {
+                  final elegida = await showDatePicker(
+                    context: context,
+                    initialDate: _fechaInicio,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
+                  );
+                  if (elegida != null) setState(() => _fechaInicio = elegida);
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Cliente desde / primer cobro'),
+                  child: Text('${_fechaInicio.day}/${_fechaInicio.month}/${_fechaInicio.year}'),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Si ya venías pagando esta suscripción, poné la fecha real en que empezó — así se refleja el cobro de este mes si ya tocaba.',
+                style: TextStyle(fontSize: 12, color: Colors.black.withValues(alpha: 0.55)),
               ),
             ],
           ),
