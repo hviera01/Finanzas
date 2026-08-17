@@ -71,7 +71,16 @@ class DashboardScreen extends ConsumerWidget {
                     // sección "Próximas renovaciones" y las cuotas su propio tablero de
                     // progreso más abajo, pero eso es solo una vista extra, no reemplaza
                     // que cuenten acá.
-                    final cargos = todosLosCargos(compras, suscripciones, tarjetasPorId).where((c) => !c.pagada).toList();
+                    //
+                    // Solo de hoy en adelante: una suscripción con fecha de inicio vieja
+                    // (puesta a propósito para que contara el ciclo actual) puede generar
+                    // cargos de meses ya pasados que nunca se pagaron — esos son historial
+                    // atrasado, no "próximo a pagar", así que no cuentan acá.
+                    final hoy = DateTime.now();
+                    final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+                    final cargos = todosLosCargos(compras, suscripciones, tarjetasPorId)
+                        .where((c) => !c.pagada && !c.fechaVencimiento.isBefore(hoySinHora))
+                        .toList();
                     final grupos = agruparPorPago(cargos);
 
                     final proximasRenovaciones = suscripciones.where((s) => s.activa).toList()
