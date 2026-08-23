@@ -15,12 +15,11 @@ class TasaCambioService {
   static const _keyValor = 'tasa_hnl_valor';
   static const _keyFecha = 'tasa_hnl_fecha';
 
-  // El tipo de cambio interbancario (el que devuelve la API) siempre queda
+  // El tipo de cambio interbancario (el que devuelve la API) puede quedar
   // un poco por debajo de lo que realmente cobra un banco/tarjeta al
-  // convertir un cargo en dólares (spread + comisión de la red). Se le
-  // agrega un margen de seguridad para que la app nunca se quede corta:
-  // mejor que sobre un poco a que falte.
-  static const _margenSeguridad = 1.03;
+  // convertir un cargo en dólares. Margen chico a propósito (1%): un 3%
+  // resultó exagerado comparado con el tipo de cambio real.
+  static const _margenSeguridad = 1.01;
 
   // Si el último fetch exitoso quedó cacheado hace más de esto, ya no se
   // confía ciegamente en ese número (podría ser de hace meses) — se usa
@@ -28,9 +27,9 @@ class TasaCambioService {
   static const _antiguedadMaximaCache = Duration(days: 7);
 
   // Respaldo fijo para cuando no hay fetch reciente ni caché confiable.
-  // Puesto deliberadamente por encima del tipo de cambio real de HNL para
-  // no subestimar — actualizar de vez en cuando si el Lempira se mueve mucho.
-  static const _respaldoFijo = 28.0;
+  // Cerca del tipo de cambio real de HNL (con un poquito de margen) —
+  // actualizar de vez en cuando si el Lempira se mueve.
+  static const _respaldoFijo = 27.2;
 
   Future<TasaCambio> obtenerTasaUsdHnl() async {
     final prefs = await SharedPreferences.getInstance();
