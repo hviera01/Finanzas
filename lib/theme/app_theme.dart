@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -11,6 +12,27 @@ class AppColors {
   static const superficie = Color(0xFFFFFFFF);
   static const superficieOscura = Color(0xFF16302A);
   static const texto = Color(0xFF122420);
+}
+
+class _TransicionWebSafari extends PageTransitionsBuilder {
+  const _TransicionWebSafari();
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 160);
+
+  @override
+  Duration get reverseTransitionDuration => Duration.zero;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(opacity: animation, child: child);
+  }
 }
 
 class AppTheme {
@@ -30,6 +52,15 @@ class AppTheme {
     );
 
     return base.copyWith(
+      // En Safari (iPhone/iPad/Mac) el gesto de atras ya trae su propia
+      // animacion del navegador; si Flutter ademas anima la salida de la
+      // pantalla se ve doble y parece que la pagina se recarga. Solo web.
+      pageTransitionsTheme: kIsWeb
+          ? const PageTransitionsTheme(builders: {
+              TargetPlatform.iOS: _TransicionWebSafari(),
+              TargetPlatform.macOS: _TransicionWebSafari(),
+            })
+          : const PageTransitionsTheme(),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.fondo,
         foregroundColor: AppColors.texto,
